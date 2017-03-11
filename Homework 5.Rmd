@@ -158,9 +158,17 @@ knitr::kable(m1m2,
 STUDENT CHOICE - pick either a `htmlwidget` from [http://gallery.htmlwidgets.org/](http://gallery.htmlwidgets.org/) or do a "flexdashboard" using the templates at [http://rmarkdown.rstudio.com/flexdashboard/](http://rmarkdown.rstudio.com/flexdashboard/) as a guide.
 
 ```{r}
+#Load DT
+library(DT)
+#Create interactive table from html widget with filter option turned on
+datatable(Wong, filter = 'top', options = list(
+  pageLength = 5, autoWidth = TRUE
+))
 
 ```
 
+
+Rmd file can be found at <https://github.com/amonda/N741interactive>, entitled "Homework 5.rmd". 
 
 ## References
 Wong, P. P., Monette, G., and Weiner, N. I. (2001) Mathematical models of cognitive recovery. Brain Injury, 15, 519–530.
