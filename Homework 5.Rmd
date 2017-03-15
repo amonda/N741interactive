@@ -2,7 +2,9 @@
 title: "Homework 5"
 author: "Alyssa Monda"
 date: "3/10/2017"
-output: html_document
+output:
+  word_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -66,16 +68,20 @@ Make a table of non-parametric statistics (median and IQR) for the number of day
 #run some summaries
 ta1 <- Wong %>%
   group_by(sex) %>%
-  summarise(MedianDays = median(days, na.rm=TRUE),
-            quantileDays = quantile(days, 0.25, na.rm=TRUE),
-            MedianDuration = median(duration, na.rm=TRUE),
-            quantileduration = quantile(duration, 0.25, na.rm=TRUE),
+   summarise(mediandays = median(days, na.rm=TRUE),
+            firstqdays  =   quantile(days,0.25, na.rm=TRUE),
+            thirdrdqdays = quantile(days, 0.75, na.rm=TRUE),
+             medianduration = median(duration, na.rm=TRUE),
+            firstqduration =   quantile(duration, 0.25, na.rm=TRUE),
+            thirdqduration = quantile(duration, 0.75, na.rm=TRUE))
 
-knitr::kable((ta1
-             col.names=c("Sex",
-                         "Median Days","IQR Days",
-                         "Median Duration","IQR Duration",
-             caption="Summary Statistics of Wong Data")
+knitr::kable(ta1,
+              col.names=c("SEX",
+                         "Median Days","1st quantile Days",
+                         "3rd quantile days",
+                         "Median Duration","1st quantile Duration",
+                         "3rd quantile days"),
+             caption="Summary Statistics by Sex, Days, and Duration")
 ```
 
 
@@ -85,16 +91,17 @@ Make a table of parametric statistics (mean and SD) for the performance outcomes
 ```{r}
 t2 <- Wong %>%
   group_by(sex) %>%
-  summarise(avgpiq = mean(piq, na.rm=TRUE),
-            sdpiq  =   sd(piq, na.rm=TRUE),
-            avgviq = mean(viq, na.rm=TRUE),
-            sdviq  =   sd(viq, na.rm=TRUE),
+   summarise(avgperformance = mean(piq, na.rm=TRUE),
+            sdperformance  =   sd(piq, na.rm=TRUE),
+            avgverbal = mean(viq, na.rm=TRUE),
+            sdverbal  =   sd(viq, na.rm=TRUE))
 
 knitr::kable(t2,
              col.names=c("Sex",
-                         "Mean performance (i.e., mathematical) IQ","SD performance (i.e., mathematical) IQ",
-                         "Mean verbal IQ","SD verbal IQ",
-             caption="Summary Statistics of IQ)
+                         "Mean Performance","SD Performance",
+                         "Mean Verbal","SD Verbal"),
+
+             caption="Summary Statistics by Sex, PerformanceIq and Verbal IQ")
 ```
 
 
