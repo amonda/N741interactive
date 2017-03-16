@@ -1,0 +1,44 @@
+---
+title: "Homework 6"
+author: "Alyssa Monda"
+date: "3/15/2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Installed Packages
+```{r}
+#ggplot2
+library(ggplot2)
+ packageVersion("ggplot2")
+ 
+ #Phyloseq
+ library(phyloseq)
+ packageVersion("phyloseq")
+ 
+ #dada2
+  library(dada2)
+ packageVersion("dada2")
+ 
+ #shortread
+ library(ShortRead)
+  packageVersion("ShortRead")
+```
+
+##Additional Files Downloaded
+```{r}
+#MiSeq_SOP Unzipped
+path <- "~/Desktop/Big Data/MicrobiomeData/MiSeq_SOP"
+fns <- list.files(path)
+fns
+
+#RDP Zipped Files
+path <- "~/Desktop/Big Data/MicrobiomeData/"
+fns <- list.files(path)
+fns
+```
+
+R Markdown file available in github repository found at<https://github.com/amonda/N741Interactive>. In file named "Monda_BigData_HW6.Rmd".
