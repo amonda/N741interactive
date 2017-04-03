@@ -7,6 +7,16 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(class)
+library(rpart)
+library(NHANES)
+library(RColorBrewer)
+library(plot3D)
+library(parallel)
+library(randomForestSRC)
+library(ggRandomForests)
+library(mosaic)
 ```
 
 ## Directions
@@ -22,8 +32,230 @@ For each of the model types (null model, logistic regression, decision tree, ran
 
 1C. Make an appropriate visualization of this model.
 
-1D. Interpret the results. What have you learned about people's sleeping habits?
+1D. Interpret the results. What have you learned about number1's sleeping habits?
 
 Repeat problem 1 except now you are to use the quantitative variable called SleepHrsNight. The model types are as follows: null model, multiple regression, regression tree, random forest.
 
+##Creating dataset 1
+```{r}
+# Create the NHANES dataset for problem 1
+
+number1 <- NHANES %>% dplyr::select(SleepTrouble, Age, Gender, Diabetes, BMI, HHIncome, PhysActive) 
+#%>% na.omit()
+
+```
+
+```{r}
+class(number1)
+
+# Convert back to dataframe
+number1 <- as.data.frame(number1)
+glimpse(number1)
+
+# Convert factors to numeric - the packages just seem to work better that way
+number1$Gender <- as.numeric(number1$Gender)
+number1$Diabetes <- as.numeric(number1$Gender)
+number1$HHIncome <- as.numeric(number1$HHIncome)
+number1$PhysActive <- as.numeric(number1$PhysActive)
+number1$SleepTrouble <- as.numeric(number1$SleepTrouble)
+
+number1 <- na.omit(number1)
+
+glimpse(number1)
+```
+
+##k-nearest neighbor
+Classifier
+```{r}
+# Apply knn procedure to predict SleepTrouble
+
+# Let's try different values of k to see how that affects performance
+knn.1 <- knn(train = number1, test = number1, cl = as.numeric(number1$SleepTrouble), k = 1)
+knn.3 <- knn(train = number1, test = number1, cl = number1$SleepTrouble, k = 3)
+knn.5 <- knn(train = number1, test = number1, cl = number1$SleepTrouble, k = 5)
+knn.20 <- knn(train = number1, test = number1, cl = number1$SleepTrouble, k = 20)
+
+#knn.1
+```
+
+How well did it classify
+```{r}
+# Calculate the percent predicted correctly
+
+100*sum(number1$SleepTrouble == knn.1)/length(knn.1)
+100*sum(number1$SleepTrouble == knn.3)/length(knn.3)
+100*sum(number1$SleepTrouble == knn.5)/length(knn.5)
+100*sum(number1$SleepTrouble == knn.20)/length(knn.20)
+
+```
+The prediction works best when k=1.
+
+Success overall?
+```{r}
+# Another way to look at success rate against increasing k
+
+table(knn.1, number1$SleepTrouble)
+table(knn.3, number1$SleepTrouble)
+table(knn.5, number1$SleepTrouble)
+table(knn.20, number1$SleepTrouble)
+```
+
+The rest of them 
+
+```{r}
+
+# Create the grid
+
+SleepTrouble <- range(~ SleepTrouble, data = number1)
+res <- 100
+fake_grid <- expand.grid(
+  Age = seq(from = SleepTrouble['yes'], to = SleepTrouble['no'], length.out = res),
+
+#Get the overall proportion, p, of Diabetics
+
+p <- sum(number1$Diabetes == 1)/length(number1$Diabetes)
+
+# Null model prediction
+
+pred_null <- rep(p, nrow(fake_grid))
+
+# reinitialize the number1 dataset - fix Diabetes
+# back to factor of "Yes" and "No"
+
+#number1 <- NHANES[, c("Age", "Gender", "Diabetes", 
+#                     "BMI", "HHIncome", "PhysActive")]
+#number1 <- na.omit(number1)
+#number1 <- as.data.frame(number1)
+
+number1 <- NHANES %>% 
+  dplyr::select(Age, Gender, Diabetes, BMI, HHIncome, PhysActive) %>% 
+  na.omit()
+
+form <- as.formula("Diabetes ~ Age + BMI")
+
+# Evaluate each model on each grid point
+# For the decision tree
+
+dmod_tree <- rpart(form, data = number1, 
+                   control = rpart.control(cp = 0.005, minbucket = 30))
+
+# For the forest
+
+set.seed(20371)
+#dmod_forest <- rfsrc(form, data = number1, 
+#                     ntree = 201, mtry = 3)
+# try with randomForest instead of randomForestSRC package
+library(randomForest)
+dmod_forest <- randomForest(form, data = number1, 
+                     ntree = 201, mtry = 2)
+
+# Now the predictions for tree and forest
+
+pred_tree <- predict(dmod_tree, newdata = fake_grid)[, "Yes"]
+# pred_tree <- predict(dmod_tree, newdata = fake_grid)[, 1]
+pred_forest <- predict(dmod_forest, newdata = fake_grid, 
+                       type = "prob")[, "Yes"]
+
+# K-nearest neighbor prediction
+
+pred_knn <- number1 %>%
+  select(Age, BMI) %>%
+  knn(test=select(fake_grid, Age, BMI), cl = number1$Diabetes, k=5) %>%
+  as.numeric() - 1
+
+```
+Next, we want to build a dataframe with all of these predicted models, then gather() it into a long format.
+
+```{r}
+# build the data frame
+
+res <- fake_grid %>%
+  mutate(
+    "Null" = pred_null, "Decision Tree" = pred_tree,
+    "Random Forest" = pred_forest, "K-nearest neighbor" = pred_knn
+  ) %>%
+  gather(k="model", value = "y_hat", -Age, -BMI)
+```
+
+Next let's plot all of these
+```{r}
+ggplot(data = res, aes(x = Age, y = BMI)) +
+  geom_tile(aes(fill=y_hat), color = NA) +
+  geom_count(aes(color = Diabetes), alpha = 0.4, data = number1) +
+  scale_fill_gradient(low = "white", high = "blue") +
+  scale_color_manual(values = c("gray", "gold")) +
+  scale_size(range = c(0,2)) +
+  scale_x_continuous(expand = c(0.02, 0)) +
+  scale_y_continuous(expand = c(0.02, 0)) +
+  facet_wrap(~model)
+
+length(pred_knn)
+length(pred_tree)
+length(pred_forest)
+```
+
+Finally let's see what the ensemble of methods looks like, if we can get it to work:
+
+```{r}
+Diabetes_ensemble <- ifelse((pred_knn =="Yes") +
+                           (pred_tree == "Yes") +
+                           (pred_forest == "Yes") >= 2, "Yes", "No")
+
+#class(Diabete_ensemble)
+
+# Create the confusion matrix
+
+#confusion_ensemble <- tally(Diabetes_ensemble~Diabetes, data=number1, format="count")
+#confusion_ensemble
+#sum(diag(confusion_ensemble))/nrow(number1$Diabetes)
+```
+
+
+
+
+##Creating dataset 2
+```{r}
+
+number2 <- NHANES %>% dplyr::select(SleepHrsNight, SleepTrouble, Age, Gender, Diabetes, BMI, HHIncome, PhysActive) 
+#%>% na.omit()
+```
+
+
+```{r}
+class(number2)
+
+# Convert back to dataframe
+number2 <- as.data.frame(number2)
+glimpse(number2)
+
+# Convert factors to numeric - the packages just seem to work better that way
+number2$Gender <- as.numeric(number2$Gender)
+number2$Diabetes <- as.numeric(number2$Gender)
+number2$HHIncome <- as.numeric(number2$HHIncome)
+number2$PhysActive <- as.numeric(number2$PhysActive)
+number2$SleepTrouble <- as.numeric(number2$SleepTrouble)
+number2$SleepHrsNight <- as.numeric(number2$SleepHrsNight)
+
+number1 <- na.omit(number2)
+
+glimpse(number2)
+```
+
+##null model
+
+
+##logistic regression
+
+
+##decision tree
+
+
+##random forest
+
+
+##k-nearest neighbor
+
+
 The rmarkdown file for this document can be found in the repository at <https://github.com/amonda/N741interactive>. The file is called Homework_7.rmd. 
+
+
